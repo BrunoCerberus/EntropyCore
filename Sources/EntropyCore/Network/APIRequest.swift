@@ -77,6 +77,10 @@ open class APIRequest {
             }
             .eraseToAnyPublisher() // Convert the publisher to AnyPublisher<V, Error>
     }
+    
+    public init() {
+        // Do nothing
+    }
 }
 
 // Private extension for APIRequest class with helper methods
