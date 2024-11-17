@@ -9,16 +9,16 @@ import Combine
 import Foundation
 
 // Custom error enum for API request errors
-enum APIRequestError: Error {
+public enum APIRequestError: Error {
     case invalidURL
     case genericError
     case parseError
 }
 
 // Class for making API requests and handling responses
-class APIRequest {
+open class APIRequest {
     // Main method for fetching API requests
-    func fetchRequest<T: APIFetcher, V: Codable>(
+    public func fetchRequest<T: APIFetcher, V: Codable>(
         target: T, // The APIFetcher object defining the request details
         dataType: V.Type // The Codable type for the expected response
     ) -> AnyPublisher<V, Error> {

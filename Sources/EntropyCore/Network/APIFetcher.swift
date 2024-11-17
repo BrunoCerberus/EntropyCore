@@ -15,7 +15,7 @@ public enum HTTPMethod: String {
    case PUT
 }
 
-protocol APIFetcher {
+public protocol APIFetcher {
     /// The path to be appended to `baseURL` to form the full `URL`.
     var path: String { get }
 
