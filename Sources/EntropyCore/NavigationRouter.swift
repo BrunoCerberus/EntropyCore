@@ -7,7 +7,7 @@
 
 import UIKit
 
-public protocol NavigationRouter {
+public protocol NavigationRouter: Equatable {
     // Navigation event that will be triggered by View
     associatedtype NavigationEventType
 
