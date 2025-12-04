@@ -24,21 +24,25 @@ public protocol CombineInteractor {
 
 // This will add a way to VM interact with interactor's upstream outputs.
 public extension Publisher {
+    @MainActor
     func interact<Interactor: CombineInteractor>(with interactor: Interactor)
-    -> some Publisher<Interactor.Output, Interactor.OutputError> where
-    Interactor.InputError == Failure, Interactor.Input == Output {
-        interactor.interact(upstream: self.eraseToAnyPublisher())
+        -> some Publisher<Interactor.Output, Interactor.OutputError> where
+        Interactor.InputError == Failure, Interactor.Input == Output
+    {
+        interactor.interact(upstream: eraseToAnyPublisher())
     }
 }
 
 // By inheritance defines a AnyCombineInteractor so we can stub mocked values for testing
+@MainActor
 public struct AnyCombineInteractor<Input, InputError: Error, Output, OutputError: Error>: CombineInteractor {
     private let interactFunc: (AnyPublisher<Input, InputError>) -> AnyPublisher<Output, OutputError>
 
     public init<I: CombineInteractor>(interactor: I) where I.Input == Input,
-    I.InputError == InputError,
-    I.Output == Output,
-    I.OutputError == OutputError {
+        I.InputError == InputError,
+        I.Output == Output,
+        I.OutputError == OutputError
+    {
         interactFunc = { upstream in interactor.interact(upstream: upstream) }
     }
 
@@ -56,6 +60,7 @@ public extension CombineInteractor {
 }
 
 /// A mock interactor for testing.
+@MainActor
 public struct MockCombineInteractor<Input, InputError: Error, Output, OutputError: Error>: CombineInteractor {
     private let subject = PassthroughSubject<Output, OutputError>()
 
