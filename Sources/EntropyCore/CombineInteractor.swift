@@ -8,6 +8,11 @@
 import Foundation
 import Combine
 
+/// Protocol for domain interactors using Combine reactive streams.
+///
+/// @MainActor ensures all state mutations and interactions happen on the main thread,
+/// providing thread safety for UI-related operations.
+@MainActor
 public protocol CombineInteractor {
     associatedtype Input
     associatedtype InputError: Error

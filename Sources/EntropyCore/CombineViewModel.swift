@@ -9,6 +9,10 @@ import Combine
 
 /// A ViewModel which is intended to be used with combine.
 /// The primary difference is that it doesn't require sending to be async.
+///
+/// @MainActor ensures all UI-related state and event handling happens on the main thread,
+/// providing thread safety for SwiftUI view updates.
+@MainActor
 public protocol CombineViewModel: ObservableObject {
     associatedtype ViewStateType
     associatedtype ViewEventType
@@ -22,16 +26,19 @@ public protocol CombineViewModel: ObservableObject {
     func sendViewEvent(_ event: ViewEventType)
 }
 
+@MainActor
 final class AnyCombineViewModel<ViewStateType, ViewEventType>: CombineViewModel {
     public var viewState: ViewStateType {
         viewStateGetter()
     }
+
     private let viewEventSender: (ViewEventType) -> Void
     private let viewStateGetter: () -> ViewStateType
     private var subscriptions: Set<AnyCancellable> = []
 
     init<VM: CombineViewModel>(viewModel: VM) where VM.ViewStateType == ViewStateType,
-    VM.ViewEventType == ViewEventType {
+        VM.ViewEventType == ViewEventType
+    {
         viewEventSender = viewModel.sendViewEvent(_:)
         viewStateGetter = { viewModel.viewState }
         // We need to tell the current view model that the data has changed,
