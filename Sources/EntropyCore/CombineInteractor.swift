@@ -1,82 +1,32 @@
 //
 //  CombineInteractor.swift
-//  GitHubApp
+//  EntropyCore
 //
 //  Created by bruno on 29/05/23.
 //
 
-import Foundation
 import Combine
+import Foundation
 
-/// Protocol for domain interactors using Combine reactive streams.
+/// A domain interactor protocol for Combine-based unidirectional data flow.
 ///
-/// @MainActor ensures all state mutations and interactions happen on the main thread,
+/// This protocol defines the contract for domain interactors that:
+/// - Manage domain state via `statePublisher`
+/// - Process domain actions via `dispatch(action:)`
+/// - Encapsulate business logic and side effects
+///
+/// @MainActor ensures all state mutations happen on the main thread,
 /// providing thread safety for UI-related operations.
 @MainActor
 public protocol CombineInteractor {
-    associatedtype Input
-    associatedtype InputError: Error
-    associatedtype Output
-    associatedtype OutputError: Error
+    associatedtype DomainState: Equatable
+    associatedtype DomainAction
 
-    func interact(upstream: AnyPublisher<Input, InputError>) -> AnyPublisher<Output, OutputError>
+    /// Publisher that emits the current domain state.
+    var statePublisher: AnyPublisher<DomainState, Never> { get }
+
+    /// Dispatches an action to be processed by the interactor.
+    ///
+    /// - Parameter action: A `DomainAction` to process
+    func dispatch(action: DomainAction)
 }
-
-// This will add a way to VM interact with interactor's upstream outputs.
-public extension Publisher {
-    @MainActor
-    func interact<Interactor: CombineInteractor>(with interactor: Interactor)
-        -> some Publisher<Interactor.Output, Interactor.OutputError> where
-        Interactor.InputError == Failure, Interactor.Input == Output
-    {
-        interactor.interact(upstream: eraseToAnyPublisher())
-    }
-}
-
-// By inheritance defines a AnyCombineInteractor so we can stub mocked values for testing
-@MainActor
-public struct AnyCombineInteractor<Input, InputError: Error, Output, OutputError: Error>: CombineInteractor {
-    private let interactFunc: (AnyPublisher<Input, InputError>) -> AnyPublisher<Output, OutputError>
-
-    public init<I: CombineInteractor>(interactor: I) where I.Input == Input,
-        I.InputError == InputError,
-        I.Output == Output,
-        I.OutputError == OutputError
-    {
-        interactFunc = { upstream in interactor.interact(upstream: upstream) }
-    }
-
-    public func interact(upstream: AnyPublisher<Input, InputError>) -> AnyPublisher<Output, OutputError> {
-        interactFunc(upstream)
-    }
-}
-
-public typealias AnyCombineInteractorNoError<Input, Output> = AnyCombineInteractor<Input, Never, Output, Never>
-
-public extension CombineInteractor {
-    func eraseToAny() -> AnyCombineInteractor<Input, InputError, Output, OutputError> {
-        return AnyCombineInteractor(interactor: self)
-    }
-}
-
-/// A mock interactor for testing.
-@MainActor
-public struct MockCombineInteractor<Input, InputError: Error, Output, OutputError: Error>: CombineInteractor {
-    private let subject = PassthroughSubject<Output, OutputError>()
-
-    public init() {}
-
-    public func interact(upstream: AnyPublisher<Input, InputError>) -> AnyPublisher<Output, OutputError> {
-        upstream
-            .catch { _ in Empty() }
-            .map { _ in subject }
-            .switchToLatest()
-            .eraseToAnyPublisher()
-    }
-
-    public func send(_ event: Output) {
-        subject.send(event)
-    }
-}
-
-public typealias MockCombineInteractorNoError<Input, Output> = MockCombineInteractor<Input, Never, Output, Never>

@@ -1,55 +1,58 @@
 //
 //  CombineViewModel.swift
-//  GitHubApp
+//  EntropyCore
 //
 //  Created by bruno on 29/05/23.
 //
 
 import Combine
 
-/// A ViewModel which is intended to be used with combine.
-/// The primary difference is that it doesn't require sending to be async.
+/// A ViewModel protocol for Combine-based unidirectional data flow.
+///
+/// This protocol defines the contract for ViewModels in a UDF architecture where:
+/// - Views observe `viewState` for UI updates
+/// - Views send user interactions via `handle(event:)`
+/// - ViewModels transform events into domain actions and reduce domain state to view state
 ///
 /// @MainActor ensures all UI-related state and event handling happens on the main thread,
 /// providing thread safety for SwiftUI view updates.
 @MainActor
 public protocol CombineViewModel: ObservableObject {
-    associatedtype ViewStateType
-    associatedtype ViewEventType
+    associatedtype ViewState: Equatable
+    associatedtype ViewEvent
 
-    var viewState: ViewStateType { get }
+    /// The current view state that the View observes for rendering.
+    var viewState: ViewState { get }
 
-    /// Sends a `ViewEventType` to the `ViewModel` asynchronously.
-    /// Use this when sending a `ViewEventType` from an asynchronous context.
-    ///  - parameters:
-    ///     - event: A `ViewEventType` to send to the `ViewModel` from the `View`
-    func sendViewEvent(_ event: ViewEventType)
+    /// Handles a view event from the UI layer.
+    ///
+    /// - Parameter event: A `ViewEvent` sent from the View
+    func handle(event: ViewEvent)
 }
 
+/// Type-erased wrapper for CombineViewModel to enable dynamic dispatch.
 @MainActor
-final class AnyCombineViewModel<ViewStateType, ViewEventType>: CombineViewModel {
-    public var viewState: ViewStateType {
+public final class AnyCombineViewModel<ViewState: Equatable, ViewEvent>: CombineViewModel {
+    public var viewState: ViewState {
         viewStateGetter()
     }
 
-    private let viewEventSender: (ViewEventType) -> Void
-    private let viewStateGetter: () -> ViewStateType
+    private let viewEventHandler: (ViewEvent) -> Void
+    private let viewStateGetter: () -> ViewState
     private var subscriptions: Set<AnyCancellable> = []
 
-    init<VM: CombineViewModel>(viewModel: VM) where VM.ViewStateType == ViewStateType,
-        VM.ViewEventType == ViewEventType
+    public init<VM: CombineViewModel>(viewModel: VM) where VM.ViewState == ViewState,
+        VM.ViewEvent == ViewEvent
     {
-        viewEventSender = viewModel.sendViewEvent(_:)
+        viewEventHandler = viewModel.handle(event:)
         viewStateGetter = { viewModel.viewState }
-        // We need to tell the current view model that the data has changed,
-        // So when the actual view model's objectWillChange goes off, we then say ours is too
         viewModel.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }.store(in: &subscriptions)
     }
 
-    public func sendViewEvent(_ event: ViewEventType) {
-        viewEventSender(event)
+    public func handle(event: ViewEvent) {
+        viewEventHandler(event)
     }
 }
